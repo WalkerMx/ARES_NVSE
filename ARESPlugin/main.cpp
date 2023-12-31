@@ -4,11 +4,11 @@
 #include "nvse/ParamInfos.h"
 #include "nvse/GameObjects.h"
 #include "textureData.h"
-#include <string>
 #include <fstream>
+#include <filesystem>
 
-byte ddsBytes[1572864];
 std::string ddsPath(".\\Data\\Textures\\Characters\\DaughtersOfAres\\Spine\\spine_63.dds");
+byte ddsBytes[1572864];
 
 IDebugLog		gLog("ARESPlugin.log");
 PluginHandle	g_pluginHandle = kPluginHandle_Invalid;
@@ -36,7 +36,7 @@ static ParamInfo kParams_OneFloat_ThreeInts[4] =
 	{	"int", kParamType_Integer, 0 },
 };
 
-void DrawToArray(int X, int R, int G, int B)
+void drawToArray(int X, int R, int G, int B)
 {
 	for (int i = X; i <= (X + 10); i++) {
 		for (int j = 116; j <= 139; j++) {
@@ -48,12 +48,11 @@ void DrawToArray(int X, int R, int G, int B)
 	}
 }
 
-void DrawHP(float HP, int R, int G, int B)
+void drawHP(float HP, int R, int G, int B)
 {
-	int range = floor(63 * HP);
-
-	for (int i = (64 - range); i <= 63; i++) {
-		DrawToArray(xIndicies[i - 1], R, G, B);
+	int range = 64 - floor(63 * HP);
+	for (int i = range; i <= 63; i++) {
+		drawToArray(xIndicies[i - 1], R, G, B);
 	}
 }
 
@@ -63,7 +62,6 @@ bool fileExists(const std::string& name) {
 }
 
 DEFINE_COMMAND_PLUGIN(CreateSpineTexture, "Creates DDS Texture for Spine Lighting", false, kParams_OneFloat_ThreeInts)
-#if RUNTIME
 bool Cmd_CreateSpineTexture_Execute(COMMAND_ARGS)
 {
 	float hpVal;
@@ -75,7 +73,7 @@ bool Cmd_CreateSpineTexture_Execute(COMMAND_ARGS)
 
 		if (!fileExists(ddsPath)) {
 			std::copy(defaultBytes, defaultBytes + 465360, ddsBytes + 553551);
-			DrawHP(hpVal, rVal, gVal, bVal);
+			drawHP(hpVal, rVal, gVal, bVal);
 			std::ofstream(ddsPath, std::ios::binary).write((char*)&headerBytes, sizeof(headerBytes));
 			std::ofstream(ddsPath, std::ios::binary | std::ios_base::app).write((char*)&ddsBytes, sizeof(ddsBytes));
 		}
@@ -84,10 +82,8 @@ bool Cmd_CreateSpineTexture_Execute(COMMAND_ARGS)
 	}
 	return true;
 }
-#endif
 
 DEFINE_COMMAND_PLUGIN(ClearSpineCache, "Clears DDS Spine Cache", false, NULL)
-#if RUNTIME
 bool Cmd_ClearSpineCache_Execute(COMMAND_ARGS)
 {
 	*result = 0;
@@ -99,7 +95,6 @@ bool Cmd_ClearSpineCache_Execute(COMMAND_ARGS)
 	*result = 1;
 	return true;
 }
-#endif
 
 #define RegisterScriptCommand(name) 	nvse->RegisterCommand(&kCommandInfo_ ##name)
 #define REG_CMD(name) RegisterScriptCommand(name)
@@ -140,42 +135,25 @@ void MessageHandler(NVSEMessagingInterface::Message* msg)
 
 bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 {
-	_MESSAGE("query");
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "ARESPlugin";
-	info->version = 101;
-	if (nvse->nvseVersion < PACKED_NVSE_VERSION)
-	{
-		_ERROR("NVSE version too old (got %08X expected at least %08X)", nvse->nvseVersion, PACKED_NVSE_VERSION);
-		return false;
-	}
+	info->version = 102;
+	if (nvse->nvseVersion < PACKED_NVSE_VERSION) { _ERROR("NVSE version too old (got %08X expected at least %08X)", nvse->nvseVersion, PACKED_NVSE_VERSION); return false; }
 	if (!nvse->isEditor)
 	{
-		if (nvse->runtimeVersion < RUNTIME_VERSION_1_4_0_525)
-		{
-			_ERROR("incorrect runtime version (got %08X need at least %08X)", nvse->runtimeVersion, RUNTIME_VERSION_1_4_0_525);
-			return false;
-		}
-		if (nvse->isNogore)
-		{
-			_ERROR("NoGore is not supported");
-			return false;
-		}
+		if (nvse->runtimeVersion < RUNTIME_VERSION_1_4_0_525) { _ERROR("incorrect runtime version (got %08X need at least %08X)", nvse->runtimeVersion, RUNTIME_VERSION_1_4_0_525); return false; }
+		if (nvse->isNogore) { _ERROR("NoGore is not supported"); return false; }
 	}
 	else
 	{
 		if (nvse->editorVersion < CS_VERSION_1_4_0_518)
-		{
-			_ERROR("incorrect editor version (got %08X need at least %08X)", nvse->editorVersion, CS_VERSION_1_4_0_518);
-			return false;
-		}
+		{ _ERROR("incorrect editor version (got %08X need at least %08X)", nvse->editorVersion, CS_VERSION_1_4_0_518); return false; }
 	}
 	return true;
 }
 
 bool NVSEPlugin_Load(NVSEInterface* nvse)
 {
-	_MESSAGE("load");
 	g_pluginHandle = nvse->GetPluginHandle();
 	g_nvseInterface = nvse;
 	g_messagingInterface = static_cast<NVSEMessagingInterface*>(nvse->QueryInterface(kInterface_Messaging));
@@ -205,6 +183,8 @@ bool NVSEPlugin_Load(NVSEInterface* nvse)
 	nvse->SetOpcodeBase(ARESOpcodeBase);
 	/*3FF0*/ REG_CMD(CreateSpineTexture);
 	/*3FF1*/ REG_CMD(ClearSpineCache);
+
+	decodeRLE;
 
 	return true;
 }
