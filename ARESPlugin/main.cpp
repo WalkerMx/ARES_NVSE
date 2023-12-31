@@ -7,7 +7,7 @@
 #include <string>
 #include <fstream>
 
-byte ddsBytes[2097152];
+byte ddsBytes[1572864];
 std::string ddsPath(".\\Data\\Textures\\Characters\\DaughtersOfAres\\Spine\\spine_63.dds");
 
 IDebugLog		gLog("ARESPlugin.log");
@@ -40,11 +40,10 @@ void DrawToArray(int X, int R, int G, int B)
 {
 	for (int i = X; i <= (X + 10); i++) {
 		for (int j = 116; j <= 139; j++) {
-			int index = 4 * ((j * 2048) + i);
+			int index = 3 * ((j * 2048) + i);
 			ddsBytes[index] = R;
 			ddsBytes[index + 1] = G;
 			ddsBytes[index + 2] = B;
-			ddsBytes[index + 3] = 255;
 		}
 	}
 }
@@ -75,7 +74,7 @@ bool Cmd_CreateSpineTexture_Execute(COMMAND_ARGS)
 		ddsPath = ".\\Data\\Textures\\Characters\\DaughtersOfAres\\Spine\\spine_" + std::to_string((int)floor(63 * hpVal)) + ".dds";
 
 		if (!fileExists(ddsPath)) {
-			std::copy(defaultBytes, defaultBytes + 620480, ddsBytes + 738068);
+			std::copy(defaultBytes, defaultBytes + 465360, ddsBytes + 553551);
 			DrawHP(hpVal, rVal, gVal, bVal);
 			std::ofstream(ddsPath, std::ios::binary).write((char*)&headerBytes, sizeof(headerBytes));
 			std::ofstream(ddsPath, std::ios::binary | std::ios_base::app).write((char*)&ddsBytes, sizeof(ddsBytes));
@@ -144,7 +143,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 	_MESSAGE("query");
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "ARESPlugin";
-	info->version = 100;
+	info->version = 101;
 	if (nvse->nvseVersion < PACKED_NVSE_VERSION)
 	{
 		_ERROR("NVSE version too old (got %08X expected at least %08X)", nvse->nvseVersion, PACKED_NVSE_VERSION);
@@ -197,19 +196,11 @@ bool NVSEPlugin_Load(NVSEInterface* nvse)
 
 	/***************************************************************************
 	 *
-	 *	READ THIS!
-	 *
-	 *	Before releasing your plugin, you need to request an opcode range from
-	 *	the NVSE team and set it in your first SetOpcodeBase call. If you do not
-	 *	do this, your plugin will create major compatibility issues with other
-	 *	plugins, and will not load in release versions of NVSE. See
-	 *	nvse_readme.txt for more information.
-	 *
 	 *	See https://geckwiki.com/index.php?title=NVSE_Opcode_Base
 	 *
 	 **************************************************************************/
 
-	// Using Opcode range 0x3FF0 - 0x3FFF for testing
+	// Using Opcode range 0x3FF0 - 0x3FFF
 	UInt32 const ARESOpcodeBase = 0x3FF0;
 	nvse->SetOpcodeBase(ARESOpcodeBase);
 	/*3FF0*/ REG_CMD(CreateSpineTexture);
