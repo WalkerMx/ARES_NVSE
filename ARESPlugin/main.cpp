@@ -4,11 +4,11 @@
 #include "nvse/ParamInfos.h"
 #include "nvse/GameObjects.h"
 #include "textureData.h"
+#include "ColorFunctions.h"
 #include <fstream>
-#include <filesystem>
 
 std::string ddsPath(".\\Data\\Textures\\Characters\\DaughtersOfAres\\Spine\\spine_63.dds");
-byte ddsBytes[1572864];
+byte ddsBytes[1572992];
 
 IDebugLog		gLog("ARESPlugin.log");
 PluginHandle	g_pluginHandle = kPluginHandle_Invalid;
@@ -28,9 +28,23 @@ NVSEEventManagerInterface* g_eventInterface{};
 bool (*ExtractArgsEx)(COMMAND_ARGS_EX, ...);
 #endif
 
+#define REG_CMD(name) 	nvse->RegisterCommand(&kCommandInfo_ ##name)
+#define REG_TYPED_CMD(name, type)	nvse->RegisterTypedCommand(&kCommandInfo_##name,kRetnType_##type)
+
 static ParamInfo kParams_OneFloat_ThreeInts[4] =
 {
 	{	"float", kParamType_Float,	0 },
+	{	"int", kParamType_Integer, 0 },
+	{	"int", kParamType_Integer, 0 },
+	{	"int", kParamType_Integer, 0 },
+};
+
+static ParamInfo kParams_OneFloat_SixIntegers[7] =
+{
+	{	"float", kParamType_Float,	0 },
+	{	"int", kParamType_Integer, 0 },
+	{	"int", kParamType_Integer, 0 },
+	{	"int", kParamType_Integer, 0 },
 	{	"int", kParamType_Integer, 0 },
 	{	"int", kParamType_Integer, 0 },
 	{	"int", kParamType_Integer, 0 },
@@ -40,7 +54,7 @@ void drawToArray(int X, int R, int G, int B)
 {
 	for (int i = X; i <= (X + 10); i++) {
 		for (int j = 116; j <= 139; j++) {
-			int index = 3 * ((j * 2048) + i);
+			int index = (3 * ((j * 2048) + i)) + 128;
 			ddsBytes[index] = R;
 			ddsBytes[index + 1] = G;
 			ddsBytes[index + 2] = B;
@@ -72,10 +86,10 @@ bool Cmd_CreateSpineTexture_Execute(COMMAND_ARGS)
 		ddsPath = ".\\Data\\Textures\\Characters\\DaughtersOfAres\\Spine\\spine_" + std::to_string((int)floor(63 * hpVal)) + ".dds";
 
 		if (!fileExists(ddsPath)) {
-			std::copy(defaultBytes, defaultBytes + 465360, ddsBytes + 553551);
+			std::copy(headerBytes, headerBytes + 128, ddsBytes);
+			std::copy(defaultBytes, defaultBytes + 465360, ddsBytes + 553679);
 			drawHP(hpVal, rVal, gVal, bVal);
-			std::ofstream(ddsPath, std::ios::binary).write((char*)&headerBytes, sizeof(headerBytes));
-			std::ofstream(ddsPath, std::ios::binary | std::ios_base::app).write((char*)&ddsBytes, sizeof(ddsBytes));
+			std::ofstream(ddsPath, std::ios::binary).write((char*)&ddsBytes, sizeof(ddsBytes));
 		}
 
 		*result = 1;
@@ -96,8 +110,22 @@ bool Cmd_ClearSpineCache_Execute(COMMAND_ARGS)
 	return true;
 }
 
-#define RegisterScriptCommand(name) 	nvse->RegisterCommand(&kCommandInfo_ ##name)
-#define REG_CMD(name) RegisterScriptCommand(name)
+DEFINE_COMMAND_PLUGIN(GetColorFade, "Interpolates between two colors.", false, kParams_OneFloat_SixIntegers)
+bool Cmd_GetColorFade_Execute(COMMAND_ARGS)
+{
+	*result = 0;
+	float t;
+	int r1, g1, b1, r2, g2, b2;
+	NVSEArrayVarInterface::Array* lerpColor = g_arrayInterface->CreateArray(NULL, 0, scriptObj);
+	if (ExtractArgsEx(EXTRACT_ARGS_EX, &t, &r1, &g1, &b1, &r2, &g2, &b2)) {
+		colorRGB lerpResult = getColorFade(t, colorRGB(r1, g1, b1), colorRGB(r2, g2, b2));
+		g_arrayInterface->AppendElement(lerpColor, NVSEArrayVarInterface::Element(lerpResult.r));
+		g_arrayInterface->AppendElement(lerpColor, NVSEArrayVarInterface::Element(lerpResult.g));
+		g_arrayInterface->AppendElement(lerpColor, NVSEArrayVarInterface::Element(lerpResult.b));
+		g_arrayInterface->AssignCommandResult(lerpColor, result);
+	}
+	return true;
+}
 
 void MessageHandler(NVSEMessagingInterface::Message* msg)
 {
@@ -172,6 +200,8 @@ bool NVSEPlugin_Load(NVSEInterface* nvse)
 #endif
 	}
 
+	decodeRLE();
+
 	/***************************************************************************
 	 *
 	 *	See https://geckwiki.com/index.php?title=NVSE_Opcode_Base
@@ -183,8 +213,7 @@ bool NVSEPlugin_Load(NVSEInterface* nvse)
 	nvse->SetOpcodeBase(ARESOpcodeBase);
 	/*3FF0*/ REG_CMD(CreateSpineTexture);
 	/*3FF1*/ REG_CMD(ClearSpineCache);
-
-	decodeRLE;
+	/*3FF2*/ REG_TYPED_CMD(GetColorFade, Array);
 
 	return true;
 }
