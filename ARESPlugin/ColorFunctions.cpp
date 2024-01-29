@@ -1,7 +1,5 @@
 #include "ColorFunctions.h"
 
-constexpr float div255 = 0.0039216F;
-
 constexpr int aR[9] = { 255, 255, 255, 255, 255, 0, 0, 75, 128 };
 constexpr int aG[9] = { 255, 192, 0, 165, 255, 128, 0, 0, 0 };
 constexpr int aB[9] = { 255, 203, 0, 0, 0, 0, 255, 130, 128 };
@@ -41,9 +39,9 @@ colorRGB hslToRGB(float h, float s, float l) {
 };
 
 colorHSL rgbToHSL(colorRGB source) {
-	float R = source.r * div255;
-	float G = source.g * div255;
-	float B = source.b * div255;
+	float R = source.r / 255;
+	float G = source.g / 255;
+	float B = source.b / 255;
 
 	float M = max(max(R, G), B);
 	float m = min(min(R, G), B);

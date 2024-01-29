@@ -186,7 +186,6 @@ bool Cmd_GetColorFade_Execute(COMMAND_ARGS)
 		g_arrayInterface->AppendElement(lerpColor, NVSEArrayVarInterface::Element(lerpResult.b));
 		g_arrayInterface->AssignCommandResult(lerpColor, result);
 	}
-	*result = 1;
 	return true;
 }
 
