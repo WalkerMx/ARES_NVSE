@@ -1,6 +1,6 @@
 #include "ColorFunctions.h"
 
-constexpr float div255 = 0.003921568627451;
+constexpr float div255 = 0.0039216F;
 
 constexpr int aR[9] = { 255, 255, 255, 255, 255, 0, 0, 75, 128 };
 constexpr int aG[9] = { 255, 192, 0, 165, 255, 128, 0, 0, 0 };
@@ -73,7 +73,7 @@ colorHSL rgbToHSL(colorRGB source) {
             segment = (R - G) / C;
             shift = 4;
         }
-        hue = (segment + shift) * 0.166666666666666;
+        hue = (segment + shift) * 0.1666666F;
     }
 
     return colorHSL(hue, sat, lum);
@@ -116,4 +116,8 @@ colorRGB getColorFade(float t, colorRGB c1, colorRGB c2) {
 
 colorRGB getColorFade(float t, int c1, int c2) {
     return getColorFade(t, colorRGB(aR[c1], aG[c1], aB[c1]), colorRGB(aR[c2], aG[c2], aB[c2]));
+};
+
+USHORT rgb888to565(byte r, byte g, byte b) {
+    return ((r & 0b11111000) << 8) | ((g & 0b11111100) << 3) | (b >> 3);
 };

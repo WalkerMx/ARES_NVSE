@@ -34,3 +34,4 @@ colorHSL rgbToHSL(colorRGB);
 colorHSL rgbToHSL(int, int, int);
 colorRGB getColorFade(float, colorRGB, colorRGB);
 colorRGB getColorFade(float, int, int);
+USHORT rgb888to565(byte, byte, byte);

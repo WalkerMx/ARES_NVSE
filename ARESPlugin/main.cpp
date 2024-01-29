@@ -8,7 +8,8 @@
 #include <fstream>
 
 std::string ddsPath(".\\Data\\Textures\\Characters\\DaughtersOfAres\\Spine\\spine_63.dds");
-byte ddsBytes[1572992];
+byte dxtBytes[262272];
+byte ddsBytes[491520];
 
 IDebugLog		gLog("ARESPlugin.log");
 PluginHandle	g_pluginHandle = kPluginHandle_Invalid;
@@ -50,11 +51,71 @@ static ParamInfo kParams_OneFloat_SixIntegers[7] =
 	{	"int", kParamType_Integer, 0 },
 };
 
+void blockCompress() {
+
+	int dxtIndex = 90240;
+
+	for (int y = 0; y <= 76; y += 4) {
+		for (int x = 0; x <= 2044; x += 4) {
+
+			USHORT valueList[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }; 
+
+			USHORT maxPixelValue = 0x0;
+			USHORT minPixelValue = 0xFFFF;
+
+			for (int j = 0; j <= 3; j++) {
+				for (int i = 0; i <= 3; i++) {
+
+					int pixelIndex = (j * 4) + i;
+					int byteIndex = 3 * (((y + j) * 2048) + (x + i));
+
+					USHORT curValue = rgb888to565(ddsBytes[byteIndex], ddsBytes[byteIndex + 1], ddsBytes[byteIndex + 2]);
+					valueList[pixelIndex] = curValue;
+
+					if (curValue > maxPixelValue) { maxPixelValue = curValue; }
+					if (curValue < minPixelValue) {	minPixelValue = curValue; }
+									
+				}
+			}
+
+			dxtBytes[dxtIndex] = maxPixelValue & 0xFF;
+			dxtBytes[dxtIndex + 1] = (maxPixelValue >> 8) & 0xFF;
+			dxtBytes[dxtIndex + 2] = minPixelValue & 0xFF;
+			dxtBytes[dxtIndex + 3] = (minPixelValue >> 8) & 0xFF;
+			dxtIndex += 4;
+
+			int stepVal = floor((maxPixelValue - minPixelValue) * 0.3333333);
+
+			for (int j = 0; j <= 3; j++) {
+				byte bitString = 0b00000000;
+				for (int i = 3; i >= 0; i--) {
+					int pixelIndex = (j * 4) + i;
+					USHORT curValue = valueList[pixelIndex];
+					bitString <<= 2;
+					if (curValue >= (stepVal * 2) + minPixelValue) {
+						bitString |= 0b00000000;
+					} else if (curValue >= stepVal + minPixelValue) {
+						bitString |= 0b00000010;
+					} else if (curValue >= minPixelValue) {
+						bitString |= 0b00000011;
+					} else {
+						bitString |= 0b00000001;
+					}
+				}
+				dxtBytes[dxtIndex] = bitString;
+				dxtIndex += 1;
+			}
+
+		}
+	}
+
+}
+
 void drawToArray(int X, int R, int G, int B)
 {
 	for (int i = X; i <= (X + 10); i++) {
-		for (int j = 116; j <= 139; j++) {
-			int index = (3 * ((j * 2048) + i)) + 128;
+		for (int j = 28; j <= 51; j++) {
+			int index = 3 * ((j * 2048) + i);
 			ddsBytes[index] = R;
 			ddsBytes[index + 1] = G;
 			ddsBytes[index + 2] = B;
@@ -86,10 +147,11 @@ bool Cmd_CreateSpineTexture_Execute(COMMAND_ARGS)
 		ddsPath = ".\\Data\\Textures\\Characters\\DaughtersOfAres\\Spine\\spine_" + std::to_string((int)floor(63 * hpVal)) + ".dds";
 
 		if (!fileExists(ddsPath)) {
-			std::copy(headerBytes, headerBytes + 128, ddsBytes);
-			std::copy(defaultBytes, defaultBytes + 465360, ddsBytes + 553679);
+			std::copy(headerBytes, headerBytes + 128, dxtBytes);
+			std::copy(defaultBytes, defaultBytes + 491520, ddsBytes);
 			drawHP(hpVal, rVal, gVal, bVal);
-			std::ofstream(ddsPath, std::ios::binary).write((char*)&ddsBytes, sizeof(ddsBytes));
+			blockCompress();
+			std::ofstream(ddsPath, std::ios::binary).write((char*)&dxtBytes, sizeof(dxtBytes));
 		}
 
 		*result = 1;
@@ -124,6 +186,7 @@ bool Cmd_GetColorFade_Execute(COMMAND_ARGS)
 		g_arrayInterface->AppendElement(lerpColor, NVSEArrayVarInterface::Element(lerpResult.b));
 		g_arrayInterface->AssignCommandResult(lerpColor, result);
 	}
+	*result = 1;
 	return true;
 }
 
@@ -165,7 +228,7 @@ bool NVSEPlugin_Query(const NVSEInterface* nvse, PluginInfo* info)
 {
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "ARESPlugin";
-	info->version = 102;
+	info->version = 240;
 	if (nvse->nvseVersion < PACKED_NVSE_VERSION) { _ERROR("NVSE version too old (got %08X expected at least %08X)", nvse->nvseVersion, PACKED_NVSE_VERSION); return false; }
 	if (!nvse->isEditor)
 	{
